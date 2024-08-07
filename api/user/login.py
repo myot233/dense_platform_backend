@@ -5,8 +5,10 @@ from fastapi import APIRouter
 
 from database.api import *
 from response import Response
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 import jwt
+
+from utils import makeAccountJwt
 
 router = APIRouter()
 
@@ -15,21 +17,15 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+class RegisterRequest(BaseModel):
+    pass
+
 
 class LoginResponse(Response):
     def __init__(self, /, **data: Any):
         super().__init__(**data)
 
     token: str | None
-
-
-def makeAccountJwt(account: str) -> str:
-    secret = "this_is_the_secret"
-    payload = {
-        "account": account,
-        "exp": datetime.datetime.now() + datetime.timedelta(days=30),
-    }
-    return jwt.encode(payload, secret, algorithm='HS256')
 
 
 @router.post("/api/login", response_model=LoginResponse)
@@ -48,8 +44,7 @@ async def register(request: LoginRequest):
     Session = sessionmaker(bind=engine)
     session = Session()
     with session:
-        user = addUserAccount(session, request.username, request.password)
+        user = addUserAccount(session, request.username, request.password, request.type)
         if not user:
             return LoginResponse(code=32, message="已存在的账号", token=None)
         return LoginResponse(token=makeAccountJwt(request.username))
-

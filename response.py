@@ -7,3 +7,4 @@ T = TypeVar('T')
 class Response(BaseModel, Generic[T]):
     code: int = 0
     message: str = ""
+
