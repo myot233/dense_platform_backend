@@ -5,17 +5,17 @@ import sqlalchemy.exc
 from pymysql import IntegrityError
 from sqlalchemy.orm import sessionmaker, Session
 
-from .table import UserDetail, DenseReport, User, UserType, Image
+from .table import UserDetail, DenseReport, User, UserType, Image, DenseImage
 from sqlalchemy import and_, or_, func
 
 from .db import engine
 
 
-def addReport(_session, user: str, doctor: str, fileId: str) -> DenseReport:
-    report = DenseReport(user=user, doctor=doctor, image=fileId, submitTime=datetime.now().date(),
-                         current_status='检测中')
+def addReport(_session:Session, user: str, doctor: str) -> DenseReport:
+    report = DenseReport(user=user, doctor=doctor)
     _session.add(report)
-    _session.commit()
+    _session.flush()
+
     return report
 
 
@@ -50,8 +50,9 @@ def addInfo(_session, userinfo: UserDetail):
         _session.add(userinfo)
         _session.commit()
     except sqlalchemy.exc.IntegrityError as err:
+
         _session.rollback()
-        return False
+        raise err
     return True
 
 
@@ -63,7 +64,7 @@ def queryAccount(_session, account: str, password: str) -> User:
 
 
 def addUserAccount(_session: Session, account: str, password: str, _type: UserType) -> bool:
-    user = User(id=account, password=password, _type=_type)
+    user = User(id=account, password=password, type=_type)
     try:
         _session.add(user)
         _session.commit()
@@ -72,6 +73,8 @@ def addUserAccount(_session: Session, account: str, password: str, _type: UserTy
         _session.rollback()
         return False
     return True
+
+
 
 
 if __name__ == '__main__':

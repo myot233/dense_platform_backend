@@ -1,12 +1,10 @@
-import datetime
 from typing import Any
 
 from fastapi import APIRouter
 
 from database.api import *
-from response import Response
-from pydantic import BaseModel, ConfigDict
-import jwt
+from utils.response import Response
+from pydantic import BaseModel
 
 from utils import makeAccountJwt
 
@@ -17,7 +15,11 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+
 class RegisterRequest(BaseModel):
+    username: str
+    password: str
+    type:UserType
     pass
 
 
@@ -40,7 +42,7 @@ async def login(request: LoginRequest):
 
 
 @router.post("/api/register", response_model=LoginResponse)
-async def register(request: LoginRequest):
+async def register(request: RegisterRequest):
     Session = sessionmaker(bind=engine)
     session = Session()
     with session:

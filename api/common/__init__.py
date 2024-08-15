@@ -1,11 +1,13 @@
 from fastapi import APIRouter
-from pydantic import BaseModel
 from fastapi.requests import Request
 from sqlalchemy.orm import sessionmaker
+from starlette.responses import StreamingResponse
 
 from database.api import uploadImage
 from database.db import engine
-from response import Response
+from database.table import Image
+from utils.request import TokenRequest
+from utils.response import Response
 from utils import resolveAccountJwt
 
 router = APIRouter()
@@ -26,3 +28,18 @@ async def image(request: Request):
     session = sessionmaker(bind=engine)()
     with session:
         return ImageResponse(image=uploadImage(session, file.filename, await file.read()))
+
+
+class GetImageRequest(TokenRequest):
+    id: int
+
+
+@router.post("/api/image/get")
+async def getImage(request: GetImageRequest):
+    username = resolveAccountJwt(request.token)["account"]
+    session = sessionmaker(bind=engine)()
+    with session:
+        detail = session.query(Image).filter(Image.id == request.id).first()
+        if detail is None or detail.image is None:
+            return StreamingResponse(open("default.png", "rb"))
+    return StreamingResponse([detail.image.data])

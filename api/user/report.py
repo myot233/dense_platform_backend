@@ -1,15 +1,15 @@
-import os
-import pathlib
-import uuid
-from typing import Any, List
+from datetime import date
+import typing
 
-from fastapi import APIRouter, UploadFile, Request
+from fastapi import APIRouter
 from pydantic import BaseModel
 
 from database.api import *
-from response import Response
+from database.table import ImageType, ReportStatus
+from utils.request import TokenRequest
+from utils.response import Response
 from utils import (resolveAccountJwt)
-from fastapi.responses import StreamingResponse
+from pydantic import ConfigDict
 
 router = APIRouter()
 
@@ -36,16 +36,22 @@ class UploadResponse(Response):
 class ReportRequest(BaseModel):
     token: str
     doctor: str
-    fileId: str
+    images: typing.List[int]
 
 
 @router.post("/api/submitReport")
 async def submitReport(request: ReportRequest):
-    Session = sessionmaker(bind=engine)
-    session = Session()
+    session = sessionmaker(bind=engine)()
     username = resolveAccountJwt(request.token)["account"]
     with session:
-        report = addReport(session, username, request.doctor, request.fileId)
+        report = DenseReport(user=username, doctor=request.doctor)
+        session.add(report)
+        session.flush()
+        for i in request.images:
+            image = DenseImage(report=report.id, image=i, _type=ImageType.source)
+            session.add(image)
+        session.flush()
+        session.commit()
         return Response()
 
 
@@ -54,12 +60,12 @@ class GetReportRequest(BaseModel):
 
 
 class Report(BaseModel):
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
     id: int
     user: str
     doctor: str
-    image: str
-    submitTime: str
-    current_status: str
+    submitTime: date
+    current_status: ReportStatus
 
 
 class ReportResponse(Response):
@@ -69,16 +75,28 @@ class ReportResponse(Response):
 @router.post("/api/getReports")
 async def getReports(request: GetReportRequest):
     username = resolveAccountJwt(request.token)["account"]
-    Session = sessionmaker(bind=engine)
-    session = Session()
+    session = sessionmaker(bind=engine)()
     with session:
         reports = get_reports(session, username)
 
-        return ReportResponse(reports=list(map(
-            lambda x: Report(id=x.id, user=x.user, doctor=x.doctor, image=x.image, submitTime=x.submitTime.strftime("%Y-%m-%d"),
-                             current_status=x.current_status), reports)))
+        return ReportResponse(reports=[Report.model_validate(i) for i in reports])
 
 
-@router.post("/api/getReport")
-async def getReports(request):
-    pass
+class ReportImageRequest(TokenRequest):
+    id: int
+    type: ImageType
+
+
+class ReportImageResponse(Response):
+    images: List[int]
+
+
+@router.post("/api/report/images")
+def reportImages(request: ReportImageRequest):
+    username = resolveAccountJwt(request.token)["account"]
+    session = sessionmaker(bind=engine)()
+    with session:
+        results = session.query(DenseImage).join(DenseReport).filter(
+            and_(DenseImage._type == request.type, DenseReport.id == request.id)).all()
+
+        return ReportImageResponse(images=list([i.image for i in results]))

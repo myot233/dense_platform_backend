@@ -1,13 +1,15 @@
+import asyncio
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api import user_router
+from api import router
 
 app = FastAPI()
 origins = [
-    "http://localhost.tiangolo.com",
-    "https://localhost.tiangolo.com",
+
     "http://localhost",
     "http://localhost:5173",
+    "http://192.168.71.86:5173"
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -16,4 +18,5 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.include_router(user_router)
+app.include_router(router)
+
