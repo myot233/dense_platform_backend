@@ -5,7 +5,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from database.api import *
-from database.table import ImageType, ReportStatus
+from database.table import ImageType, ReportStatus, Comment
 from utils.request import TokenRequest
 from utils.response import Response
 from utils import (resolveAccountJwt)
@@ -77,8 +77,10 @@ async def getReports(request: GetReportRequest):
     username = resolveAccountJwt(request.token)["account"]
     session = sessionmaker(bind=engine)()
     with session:
-        reports = get_reports(session, username)
-
+        if isDoctor(session, username):
+            reports = session.query(DenseReport).filter(DenseReport.doctor == username).all()
+        else:
+            reports = get_reports(session, username)
         return ReportResponse(reports=[Report.model_validate(i) for i in reports])
 
 
@@ -100,3 +102,52 @@ def reportImages(request: ReportImageRequest):
             and_(DenseImage._type == request.type, DenseReport.id == request.id)).all()
 
         return ReportImageResponse(images=list([i.image for i in results]))
+
+
+class DeleteReportRequest(TokenRequest):
+    id: int
+
+
+@router.post("/api/report/delete")
+def deleteReport(request: DeleteReportRequest):
+    username = resolveAccountJwt(request.token)["account"]
+    session = sessionmaker(bind=engine)()
+    with session:
+        report = session.query(DenseReport).filter(DenseReport.id == request.id).first()
+        session.delete(report)
+
+        session.commit()
+        return Response()
+
+
+class ReportDetailRequest(TokenRequest):
+    id: int
+
+
+class CommentModel(BaseModel):
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
+    user: str
+    content: str
+
+
+class ReportDetailResponse(Response):
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
+    id: int
+    user: str
+    doctor: str
+    submitTime: date
+    current_status:  ReportStatus
+    diagnose: str | None
+    comments: typing.List[CommentModel] = []
+
+
+@router.post("/api/report/detail")
+def getReportDetail(request: ReportDetailRequest):
+    username = resolveAccountJwt(request.token)["account"]
+    session = sessionmaker(bind=engine)()
+    with session:
+        report = session.query(DenseReport).filter(DenseReport.id == request.id).first()
+        comments = session.query(Comment).filter(Comment.dense_report == report).all()
+        resp = ReportDetailResponse.model_validate(report)
+        resp.comments = list([CommentModel.model_validate(comment) for comment in comments])
+        return resp

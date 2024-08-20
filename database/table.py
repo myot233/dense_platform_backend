@@ -1,7 +1,7 @@
 # coding: utf-8
 import enum
 
-from sqlalchemy import CHAR, Column, Date, DateTime, Enum, ForeignKey, LargeBinary, String, text
+from sqlalchemy import CHAR, Column, Date, DateTime, Enum, ForeignKey, LargeBinary, String, text, Text
 from sqlalchemy.dialects.mysql import BIGINT
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.ext.declarative import declarative_base
@@ -25,7 +25,7 @@ class UserSex(enum.IntEnum):
     Male = 1
 
 
-class ReportStatus(enum.IntEnum ): #不用IntEnum返回json会是字符串
+class ReportStatus(enum.IntEnum):  #不用IntEnum返回json会是字符串
     Checking = 0
     Completed = 1
     Abnormality = 2
@@ -48,8 +48,9 @@ class DenseImage(Base):
     report = Column(ForeignKey('dense_report.id'), nullable=False, index=True)
     image = Column(ForeignKey('image.id'), nullable=False, index=True)
     _type = Column(Enum(ImageType), nullable=False)
-    dense_report = relationship('DenseReport', backref=backref('dense_image', uselist=True))
-    image_relationship = relationship('Image')
+    dense_report = relationship('DenseReport', backref=backref('dense_image', uselist=True),
+                                cascade="all, delete-orphan", single_parent=True)
+    image_relationship = relationship('Image', cascade="all, delete-orphan", single_parent=True)
 
 
 class User(Base):
@@ -88,11 +89,11 @@ class DenseReport(Base):
     __tablename__ = 'dense_report'
 
     id = Column(BIGINT(20), primary_key=True)
-    user = Column(ForeignKey('user.id'), unique=True)
+    user = Column(ForeignKey('user.id'), index=True)
     doctor = Column(ForeignKey('user.id'), index=True)
     submitTime = Column(Date, server_default=text("current_timestamp()"))
     current_status = Column(Enum(ReportStatus), server_default=text("'Checking'"))
-
+    diagnose = Column(Text)
     user1 = relationship('User', primaryjoin='DenseReport.doctor == User.id')
     user2 = relationship('User', primaryjoin='DenseReport.user == User.id')
 
@@ -102,6 +103,7 @@ class Comment(Base):
 
     id = Column(BIGINT(20), primary_key=True)
     report = Column(ForeignKey('dense_report.id'), nullable=False, index=True)
+    user = Column(ForeignKey("user.id"),nullable=False)
     content = Column(String(4096))
-
+    user1 = relationship('User')
     dense_report = relationship('DenseReport')

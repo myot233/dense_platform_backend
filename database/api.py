@@ -11,7 +11,11 @@ from sqlalchemy import and_, or_, func
 from .db import engine
 
 
-def addReport(_session:Session, user: str, doctor: str) -> DenseReport:
+def isDoctor(_session: Session, user: str) -> bool:
+    u = _session.query(User).filter(User.id == user).first()
+    return u.type == UserType.Doctor
+
+def addReport(_session: Session, user: str, doctor: str) -> DenseReport:
     report = DenseReport(user=user, doctor=doctor)
     _session.add(report)
     _session.flush()
@@ -73,8 +77,6 @@ def addUserAccount(_session: Session, account: str, password: str, _type: UserTy
         _session.rollback()
         return False
     return True
-
-
 
 
 if __name__ == '__main__':

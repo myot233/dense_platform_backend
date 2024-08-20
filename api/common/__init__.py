@@ -40,6 +40,6 @@ async def getImage(request: GetImageRequest):
     session = sessionmaker(bind=engine)()
     with session:
         detail = session.query(Image).filter(Image.id == request.id).first()
-        if detail is None or detail.image is None:
+        if not detail:
             return StreamingResponse(open("default.png", "rb"))
-    return StreamingResponse([detail.image.data])
+    return StreamingResponse([detail.data])
