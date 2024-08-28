@@ -61,12 +61,13 @@ class User(Base):
     type = Column(Enum(UserType), nullable=False)
 
 
-class Doctor(User):
+class Doctor(Base):
     __tablename__ = 'doctor'
 
     id = Column(ForeignKey('user.id'), primary_key=True)
     position = Column(String(20))
     workplace = Column(String(20))
+    user = relationship('User', backref=backref('user'))
 
 
 class UserDetail(Base):
@@ -103,7 +104,7 @@ class Comment(Base):
 
     id = Column(BIGINT(20), primary_key=True)
     report = Column(ForeignKey('dense_report.id'), nullable=False, index=True)
-    user = Column(ForeignKey("user.id"),nullable=False)
+    user = Column(ForeignKey("user.id"), nullable=False)
     content = Column(String(4096))
     user1 = relationship('User')
     dense_report = relationship('DenseReport')

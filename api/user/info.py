@@ -18,12 +18,12 @@ class Form(BaseModel):
         super().__init__(**data)
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
-    name: str = None
-    sex: UserSex = None
-    birth: date = None
-    phone: str = None
-    email: str = None
-    address: str = None
+    name: str | None = ""
+    sex: UserSex | None = ""
+    birth: date | None = ""
+    phone: str | None = ""
+    email: str | None = ""
+    address: str | None = ""
 
 
 class InfoResponse(Response):
@@ -102,6 +102,7 @@ async def submitAvatar(request: AvatarRequest):
         detail = queryInfo(session, username)
         if detail is None:
             detail = UserDetail(id=username)
+            session.add(detail)
         image = session.query(Image).filter(Image.id == request.id).first()
         detail.image = image
         session.commit()

@@ -51,14 +51,31 @@ class DoctorInfoResponse(Response):
     form: DoctorInfo
 
 
+class SetDoctorInfoRequest(TokenRequest):
+    form: DoctorInfo
+
+
+@router.post("/api/doctor/info/set")
+async def setDoctorInfo(request: SetDoctorInfoRequest):
+    username = resolveAccountJwt(request.token)["account"]
+    session = sessionmaker(bind=engine)()
+    with session:
+        info = session.query(tDoctor).filter(tDoctor.id == username).first()
+        info.position = request.form.position
+        info.workplace = request.form.workplace
+        session.commit()
+        return DoctorInfoResponse(form=DoctorInfo.model_validate(info))
+
+
 @router.post("/api/doctor/info")
 async def doctorInfo(request: TokenRequest):
     username = resolveAccountJwt(request.token)["account"]
     session = sessionmaker(bind=engine)()
     with session:
         info = session.query(tDoctor).filter(tDoctor.id == username).first()
-        if info is None:
-            info = tDoctor(position='', workplace='')
-            session.add(info)
 
+        if info is None:
+            info = tDoctor(id=username, position='', workplace='')
+            session.add(info)
+        session.commit()
         return DoctorInfoResponse(form=DoctorInfo.model_validate(info))

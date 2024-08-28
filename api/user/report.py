@@ -3,6 +3,7 @@ import typing
 
 from fastapi import APIRouter
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from database.api import *
 from database.table import ImageType, ReportStatus, Comment
@@ -74,14 +75,20 @@ class ReportResponse(Response):
 
 @router.post("/api/getReports")
 async def getReports(request: GetReportRequest):
+    def mapping(x: DenseReport):
+        report = Report.model_validate(x)
+        report.doctor = x.user1.user_detail.name if x.user1.user_detail is not None else x.user1.id
+        return report
+
     username = resolveAccountJwt(request.token)["account"]
-    session = sessionmaker(bind=engine)()
-    with session:
+    session: Session = sessionmaker(bind=engine)()
+    with (session):
         if isDoctor(session, username):
             reports = session.query(DenseReport).filter(DenseReport.doctor == username).all()
         else:
             reports = get_reports(session, username)
-        return ReportResponse(reports=[Report.model_validate(i) for i in reports])
+
+        return ReportResponse(reports=[mapping(i) for i in reports])
 
 
 class ReportImageRequest(TokenRequest):
@@ -136,7 +143,7 @@ class ReportDetailResponse(Response):
     user: str
     doctor: str
     submitTime: date
-    current_status:  ReportStatus
+    current_status: ReportStatus
     diagnose: str | None
     comments: typing.List[CommentModel] = []
 
@@ -151,3 +158,21 @@ def getReportDetail(request: ReportDetailRequest):
         resp = ReportDetailResponse.model_validate(report)
         resp.comments = list([CommentModel.model_validate(comment) for comment in comments])
         return resp
+
+
+class DiagnoseRequest(TokenRequest):
+    id: int
+    diagnose: str
+
+
+@router.post('/api/report/diagnose/submit')
+def submitDiagnose(request: DiagnoseRequest):
+    username = resolveAccountJwt(request.token)["account"]
+    session = sessionmaker(bind=engine)()
+    with session:
+        #鉴权 id是否是该doctor所属的
+        report = session.query(DenseReport).filter(DenseReport.id == request.id).first()
+        report.diagnose = request.diagnose
+        report.current_status = ReportStatus.Completed
+        session.commit()
+        return Response()
