@@ -1,7 +1,6 @@
 from jwt import encode, decode
 import datetime
 
-
 def makeAccountJwt(account: str) -> str:
     secret = "this_is_the_secret"
     payload = {
