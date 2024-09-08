@@ -1,19 +1,17 @@
-from datetime import datetime
 from typing import List
 
 import sqlalchemy.exc
-from pymysql import IntegrityError
+from sqlalchemy import and_
 from sqlalchemy.orm import sessionmaker, Session
 
-from .table import UserDetail, DenseReport, User, UserType, Image, DenseImage
-from sqlalchemy import and_, or_, func
-
 from .db import engine
+from .table import UserDetail, DenseReport, User, UserType, Image
 
 
 def isDoctor(_session: Session, user: str) -> bool:
     u = _session.query(User).filter(User.id == user).first()
     return u.type == UserType.Doctor
+
 
 def addReport(_session: Session, user: str, doctor: str) -> DenseReport:
     report = DenseReport(user=user, doctor=doctor)

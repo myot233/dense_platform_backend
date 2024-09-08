@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from database.api import *
-from database.table import ImageType, ReportStatus, Comment
+from database.table import ImageType, ReportStatus, Comment, DenseImage
 from utils.request import TokenRequest
 from utils.response import Response
 from utils import (resolveAccountJwt)
